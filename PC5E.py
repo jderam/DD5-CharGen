@@ -91,8 +91,8 @@ class PlayerCharacter5E(object):
         self.char_prof_bonus = 2
         self.char_ability_scores = {"STR":0, "DEX":0, "CON":0, "INT":0, "WIS":0, "CHA":0}
         self.char_race_id = 0
-        self.char_race_name = None
-        self.char_race_features = None
+        self.char_race_name = ""
+        self.char_race_features = []
         self.char_size = ""
         self.char_speed = 0
         self.char_darkvision = 0
@@ -183,29 +183,28 @@ class PlayerCharacter5E(object):
             self.char_ability_scores[ab] = (roll_4d6())
         #print "Here are your final scores: ", self.char_ability_scores
 
-    def print_ability_scores(self):
-        print("STR " + pad_ability_score(self.char_ability_scores["STR"]) + " (" + pad_modifier(ability_modifiers[self.char_ability_scores["STR"]]) + ")")
-        print("DEX " + pad_ability_score(self.char_ability_scores["DEX"]) + " (" + pad_modifier(ability_modifiers[self.char_ability_scores["DEX"]]) + ")")
-        print("CON " + pad_ability_score(self.char_ability_scores["CON"]) + " (" + pad_modifier(ability_modifiers[self.char_ability_scores["CON"]]) + ")")
-        print("INT " + pad_ability_score(self.char_ability_scores["INT"]) + " (" + pad_modifier(ability_modifiers[self.char_ability_scores["INT"]]) + ")")
-        print("WIS " + pad_ability_score(self.char_ability_scores["WIS"]) + " (" + pad_modifier(ability_modifiers[self.char_ability_scores["WIS"]]) + ")")
-        print("CHA " + pad_ability_score(self.char_ability_scores["CHA"]) + " (" + pad_modifier(ability_modifiers[self.char_ability_scores["CHA"]]) + ")")
-    
+
 
     
     # RACE
+
     def choose_race(self):
         """ allow the user to select a race """
         c.execute("SELECT race_id, race_name, bonus_text FROM races")
         race_list = c.fetchall()
+        c.execute("SELECT Max(Length(race_name)) FROM races")
+        longest_race_name = c.fetchone()[0]
+        print("Choose a race:")
+        print()
         for race in race_list:
-            race_pk = race[0]
-            race_name = str(race[1])
-            race_bonus_text = str(race[2])
-            print(str(race_pk) + ". " + race_name + ": " + race_bonus_text)
+            race_id = race[0]
+            race_name = race[1]
+            race_bonus_text = race[2]
+            #print(str(race_id) + ". " + race_name + ": " + race_bonus_text)
+            print("{0:>2}. {1:<{2}} {3}".format(race_id, race_name, longest_race_name, race_bonus_text))
         self.char_race_id = int(input("Enter the number of the race you'd like: "))
         c.execute("SELECT race_name FROM races WHERE race_id=?", (self.char_race_id,))
-        self.char_race_name = str(c.fetchone()[0])
+        self.char_race_name = c.fetchone()[0]
         #print "You've chosen", self.char_race_name
         clear_screen()
     
@@ -252,11 +251,11 @@ class PlayerCharacter5E(object):
         c.execute("SELECT speed FROM races WHERE race_id=?",(self.char_race_id,))
         self.char_speed = int(c.fetchone()[0])
         c.execute("SELECT darkvision FROM races WHERE race_id=?",(self.char_race_id,))
-        self.char_size = int(c.fetchone()[0])
+        self.char_darkvision = int(c.fetchone()[0])
     
     def get_race_features(self):
         c.execute("SELECT feature_name, feature_text FROM race_features WHERE race_id=?",(self.char_race_id,))
-        results = c.fetchall()
+        self.char_race_features = c.fetchall()
         # results is a list of tuples, i.e. (feature_name, feature_desc)
         #print(results)
     
@@ -281,8 +280,11 @@ class PlayerCharacter5E(object):
         """ present user with a list of backgrounds so they can choose one """
         c.execute("SELECT bg_id, background FROM bg_backgrounds")
         bg_list = c.fetchall()
+        print("Choose a background:")
+        print()
         for bg in bg_list:
-            print(bg[0] + " " + str(bg[1]))
+            #print(bg[0] + " " + str(bg[1]))
+            print("{0:>2}. {1}".format(bg[0], bg[1]))
         self.char_bg_id = int(input("Enter the number of the background you'd like: "))
         c.execute("SELECT background FROM bg_backgrounds WHERE bg_id=?", (self.char_bg_id,))
         self.char_bg_name = str(c.fetchone()[0])
@@ -387,6 +389,54 @@ class PlayerCharacter5E(object):
     
     # CLASS
     
+    def choose_class(self):
+        """ allow the user to select a class """
+        c.execute("SELECT class_id, class_name, hd, prime_req FROM classes")
+        class_list = c.fetchall()
+        # returns list of tuples
+        c.execute("SELECT Max(Length(class_name)) FROM classes")
+        longest_class_name = c.fetchone()[0]
+        print("Choose a class:")
+        print()
+        for pc_class in class_list:
+            class_id = pc_class[0]
+            class_name = pc_class[1]
+            hd = pc_class[2]
+            prime_req = pc_class[3]
+            #print(str(race_pk) + ". " + race_name + ": " + race_bonus_text)
+            print("{0:>2}. {1:<{2}} HD: d{3:<2} ".format(class_id, class_name, longest_class_name, str(hd)))
+        self.char_class_id = int(input("Enter the number of the class you'd like: "))
+        c.execute("SELECT class_name, hd, prime_req FROM classes WHERE class_id=?", (self.char_class_id,))
+        class_data = c.fetchone()
+        self.char_class_name = class_data[0]
+        self.char_hd = class_data[1]
+        self.char_prime_req = class_data[2]
+        #print "You've chosen", self.char_race_name
+        clear_screen()
+    
+    def random_class(self):
+        """ randomly select a class """
+        
+    def calculate_hp(self):
+        self.char_hp = self.char_hd + ability_modifiers[self.char_ability_scores["CON"]]
+        if self.char_lvl > 1:
+            self.char_hp += roll_dice(self.char_lvl - 1, self.char_hd) + ((self.char_lvl - 1) * ability_modifiers[self.char_ability_scores["CON"]])
+
+    def get_wpn_prof_txt(self):
+        """ """
+        c.execute("SELECT wpn_prof_text FROM class_wpn_prof WHERE class_id=? AND wpn_prof_text IS NOT NULL",(self.char_class_id,))
+        self.char_wpn_prof_txt = c.fetchone()[0]
+    
+    def get_wpn_prof_ids(self):
+        """ """
+    
+    def get_armor_prof_txt(self):
+        """ """
+        c.execute("SELECT armor_prof_text FROM class_armor_prof WHERE class_id=? AND armor_prof_text IS NOT NULL",(self.char_class_id,))
+        self.char_armor_prof_txt = c.fetchone()[0]
+    
+    def get_armor_prof_ids(self):
+        """ """
     
     
     
@@ -407,4 +457,47 @@ class PlayerCharacter5E(object):
         self.char_bg_name = str(c.fetchone()[0])
         char_skill_profs.append()
     
+    
+    # OUTPUT
+    
+    def print_pc_info(self):
+        print("Character ID: {0}".format(self.char_id))
+        print("Name: {0}".format(self.char_name))
+        print("Race/Class/Level: {0} {1} {2}".format(self.char_race_name, self.char_class_name, self.char_lvl))
+        print("Size: {0}   Speed: {1}'".format(self.char_size, self.char_speed))
+        print("Hit Points: {0}".format(self.char_hp))
+        print()
+        print("STR {0:>2} ({1})".format(self.char_ability_scores["STR"], pad_modifier(ability_modifiers[self.char_ability_scores["STR"]])))
+        print("DEX {0:>2} ({1})".format(self.char_ability_scores["DEX"], pad_modifier(ability_modifiers[self.char_ability_scores["DEX"]])))
+        print("CON {0:>2} ({1})".format(self.char_ability_scores["CON"], pad_modifier(ability_modifiers[self.char_ability_scores["CON"]])))
+        print("INT {0:>2} ({1})".format(self.char_ability_scores["INT"], pad_modifier(ability_modifiers[self.char_ability_scores["INT"]])))
+        print("WIS {0:>2} ({1})".format(self.char_ability_scores["WIS"], pad_modifier(ability_modifiers[self.char_ability_scores["WIS"]])))
+        print("CHA {0:>2} ({1})".format(self.char_ability_scores["CHA"], pad_modifier(ability_modifiers[self.char_ability_scores["CHA"]])))
+        print("Proficiency Bonus: {0}".format(pad_modifier(self.char_prof_bonus)))
+        print("".format())
+        #print("RACIAL STUFF".format())
+        print("Racial Features")
+        if self.char_darkvision > 0:
+            print("Darkvision {0}'".format(str(self.char_darkvision)))
+        for row in self.char_race_features:
+            print("{0}: {1}".format(row[0].upper(), row[1]))
+        print("".format())
+        #print("CLASS STUFF".format())
+        print("".format())
+        #print("BACKGROUND STUFF".format())
+        print("BACKGROUND: {0}".format(self.char_bg_name))
+        if self.char_bg_specialty != None:
+            print("{0}: {1}".format(self.bg_spec_title.upper(), self.char_bg_specialty))
+        print("PERSONALITY TRAIT: {0}".format(self.char_ptrait))
+        print("IDEAL: {0}".format(self.char_ideal))
+        print("BOND: {0}".format(self.char_bond))
+        print("FLAW: {0}".format(self.char_flaw))
+    
+    def print_ability_scores(self):
+        print("STR " + pad_ability_score(self.char_ability_scores["STR"]) + " (" + pad_modifier(ability_modifiers[self.char_ability_scores["STR"]]) + ")")
+        print("DEX " + pad_ability_score(self.char_ability_scores["DEX"]) + " (" + pad_modifier(ability_modifiers[self.char_ability_scores["DEX"]]) + ")")
+        print("CON " + pad_ability_score(self.char_ability_scores["CON"]) + " (" + pad_modifier(ability_modifiers[self.char_ability_scores["CON"]]) + ")")
+        print("INT " + pad_ability_score(self.char_ability_scores["INT"]) + " (" + pad_modifier(ability_modifiers[self.char_ability_scores["INT"]]) + ")")
+        print("WIS " + pad_ability_score(self.char_ability_scores["WIS"]) + " (" + pad_modifier(ability_modifiers[self.char_ability_scores["WIS"]]) + ")")
+        print("CHA " + pad_ability_score(self.char_ability_scores["CHA"]) + " (" + pad_modifier(ability_modifiers[self.char_ability_scores["CHA"]]) + ")")
     
