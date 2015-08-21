@@ -285,6 +285,7 @@ class PlayerCharacter5E(object):
         for bg in bg_list:
             #print(bg[0] + " " + str(bg[1]))
             print("{0:>2}. {1}".format(bg[0], bg[1]))
+        print()
         self.char_bg_id = int(input("Enter the number of the background you'd like: "))
         c.execute("SELECT background FROM bg_backgrounds WHERE bg_id=?", (self.char_bg_id,))
         self.char_bg_name = str(c.fetchone()[0])
@@ -382,7 +383,7 @@ class PlayerCharacter5E(object):
         """  """
     
     def apply_bg_lang(self):
-        """  """
+        """ not used. a single languages function integrating race and background languages is used later """
     
     def apply_bg_equip(self):
         """  """
@@ -443,6 +444,51 @@ class PlayerCharacter5E(object):
     
     # OTHER
 
+    def lang_prof(self):
+        if self.char_race_id > 0 and self.char_bg_id > 0:
+            c.execute("SELECT lang_id FROM race_lang WHERE race_id=?",(self.char_race_id,))
+            race_lang_ids = c.fetchall() #list of tuples
+            c.execute("SELECT lang_id FROM bg_lang WHERE bg_id=?",(self.char_bg_id,))
+            bg_lang_ids = c.fetchall() #list of tuples
+            all_lang_ids = race_lang_ids + bg_lang_ids
+            specific_lang_ids = []
+            choice_lang_ids = []
+            for lang_id in all_lang_ids:
+                if lang_id[0] == 0:
+                    choice_lang_ids.append(lang_id[0])
+                else:
+                    specific_lang_ids.append(lang_id[0]) #leave as tuple since we'll need to run queries with it
+            for lang_id in specific_lang_ids:
+                c.execute("SELECT lang_name FROM languages WHERE lang_id=?",(lang_id,))
+                self.char_languages.append(c.fetchone()[0])
+            if len(choice_lang_ids) > 0:
+                c.execute("SELECT lang_id, lang_name FROM languages WHERE lang_id NOT IN (17,18)")
+                lang_menu = c.fetchall()
+                while len(choice_lang_ids) > 0:
+                    print("You have these language proficiences:", end=" ")
+                    print(", ".join(self.char_languages))
+                    print("You may choose {0} more languages".format(len(choice_lang_ids)))
+                    print()
+                    for item in lang_menu:
+                        if item[1] in self.char_languages:
+                            idx = lang_menu.index(item)
+                            del lang_menu[idx]
+                    for item in lang_menu:
+                        print("{0:>2}. {1}".format(item[0], item[1]))
+                    print()
+                    lang_chosen = int(input("Enter the number of the language you'd like: "))
+                    c.execute("SELECT lang_name FROM languages WHERE lang_id=?",(lang_chosen,))
+                    self.char_languages.append(c.fetchone()[0])
+                    del choice_lang_ids[-1]
+                    clear_screen()
+            self.char_languages.sort()
+            
+            #print(all_lang_ids)
+            
+            
+        else:
+            raise ValueError("Must have a valid race and background selected before choosing languages. race_id: {0}; bg_id: {1}".format(self.char_race_id, self.char_bg_id))
+
     def get_trinket(self):
         self.trinket_id = roll_dice(1,100)
         c.execute("SELECT trinket_desc FROM eq_trinkets WHERE trinket_id=?", (self.trinket_id,))
@@ -477,6 +523,8 @@ class PlayerCharacter5E(object):
         print("".format())
         #print("RACIAL STUFF".format())
         print("Racial Features")
+        print("Languages:", end=" ")
+        print(", ".join(self.char_languages))
         if self.char_darkvision > 0:
             print("Darkvision {0}'".format(str(self.char_darkvision)))
         for row in self.char_race_features:

@@ -53,6 +53,9 @@ my_PC.get_armor_prof_txt()
 #print(my_PC.char_wpn_prof_txt)
 #print(my_PC.char_armor_prof_txt)
 
+my_PC.lang_prof()
+
+
 my_PC.print_pc_info()
 
 #clear_screen()
