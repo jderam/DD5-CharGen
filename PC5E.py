@@ -462,7 +462,7 @@ class PlayerCharacter5E(object):
                 c.execute("SELECT lang_name FROM languages WHERE lang_id=?",(lang_id,))
                 self.char_languages.append(c.fetchone()[0])
             if len(choice_lang_ids) > 0:
-                c.execute("SELECT lang_id, lang_name FROM languages WHERE lang_id NOT IN (17,18)")
+                c.execute("SELECT lang_id, lang_name FROM languages WHERE lang_id NOT IN (17,18)") #omit druidic and thieves cant
                 lang_menu = c.fetchall()
                 while len(choice_lang_ids) > 0:
                     print("You have these language proficiences:", end=" ")
