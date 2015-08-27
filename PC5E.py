@@ -119,6 +119,7 @@ class PlayerCharacter5E(object):
                        "Stealth":0,
                        "Survival":0}
         self.char_skill_profs = []
+        self.char_tool_prof_ids = []
         self.char_tool_profs = []
         self.char_languages = []
         self.char_weapons = []
@@ -202,6 +203,7 @@ class PlayerCharacter5E(object):
             race_bonus_text = race[2]
             #print(str(race_id) + ". " + race_name + ": " + race_bonus_text)
             print("{0:>2}. {1:<{2}} {3}".format(race_id, race_name, longest_race_name, race_bonus_text))
+        print()
         self.char_race_id = int(input("Enter the number of the race you'd like: "))
         c.execute("SELECT race_name FROM races WHERE race_id=?", (self.char_race_id,))
         self.char_race_name = c.fetchone()[0]
@@ -406,6 +408,7 @@ class PlayerCharacter5E(object):
             prime_req = pc_class[3]
             #print(str(race_pk) + ". " + race_name + ": " + race_bonus_text)
             print("{0:>2}. {1:<{2}} HD: d{3:<2} ".format(class_id, class_name, longest_class_name, str(hd)))
+        print()
         self.char_class_id = int(input("Enter the number of the class you'd like: "))
         c.execute("SELECT class_name, hd, prime_req FROM classes WHERE class_id=?", (self.char_class_id,))
         class_data = c.fetchone()
@@ -482,12 +485,162 @@ class PlayerCharacter5E(object):
                     del choice_lang_ids[-1]
                     clear_screen()
             self.char_languages.sort()
-            
-            #print(all_lang_ids)
-            
-            
         else:
             raise ValueError("Must have a valid race and background selected before choosing languages. race_id: {0}; bg_id: {1}".format(self.char_race_id, self.char_bg_id))
+
+    def tool_prof(self):
+        if self.char_race_id > 0 and self.char_bg_id > 0 and self.char_class_id > 0:
+            """ first, add in all the proficiencies where there is no choice """
+            
+            # race
+            sql = ""
+            c.execute("SELECT Count(1) FROM race_tool_prof WHERE tool_id IS NOT NULL AND race_id=?",(self.char_race_id,))
+            result = int(c.fetchone()[0])
+            if result > 0:
+                sql = ""
+                c.execute("SELECT tool_id FROM race_tool_prof WHERE tool_id IS NOT NULL AND race_id=?",(self.char_race_id,))
+                result = c.fetchall()
+                for tool in result:
+                    self.char_tool_prof_ids.append(tool[0])
+                
+            # class
+            sql = ""
+            c.execute("SELECT Count(1) FROM class_tool_prof WHERE tool_id IS NOT NULL AND class_id=?",(self.char_class_id,))
+            result = int(c.fetchone()[0])
+            if result > 0:
+                sql = ""
+                c.execute("SELECT tool_id FROM class_tool_prof WHERE tool_id IS NOT NULL AND class_id=?",(self.char_class_id,))
+                result = c.fetchall()
+                for tool in result:
+                    self.char_tool_prof_ids.append(tool[0])
+            
+            # background
+            sql = ""
+            c.execute("SELECT Count(1) FROM bg_tool_prof WHERE tool_id IS NOT NULL AND bg_id=?",(self.char_bg_id,))
+            result = int(c.fetchone()[0])
+            if result > 0:
+                sql = ""
+                c.execute("SELECT tool_id FROM bg_tool_prof WHERE tool_id IS NOT NULL AND bg_id=?",(self.char_bg_id,))
+                result = c.fetchall()
+                for tool in result:
+                    self.char_tool_prof_ids.append(tool[0])
+            
+            # eliminate any duplicates from self.char_tool_prof_ids
+            self.char_tool_prof_ids = list(set(self.char_tool_prof_ids))
+            
+            
+            print("ToolProfIDs: {0}".format(self.char_tool_prof_ids)) #debug
+            
+            """ then let the user select any remaining proficiencies
+            but remove items from the menu if they are already proficient """
+            
+            # race
+            sql = ""
+            c.execute("SELECT Count(1) FROM race_tool_prof WHERE tool_choice_id IS NOT NULL AND race_id=?",(self.char_race_id,))
+            result = int(c.fetchone()[0])
+            if result > 0:
+                sql = ""
+                c.execute("SELECT tool_choice_list FROM race_tool_prof WHERE tool_choice_id IS NOT NULL AND race_id=?",(self.char_race_id,))
+                result = c.fetchall()
+                for choice in result:
+                    choice_list = choice[0].split(sep=',')
+                    #print(choice_list) #debug
+                    #print(self.char_tool_prof_ids) #debug
+                    #char_tool_prof_ids_str = []
+                    
+                    sql = ("SELECT tool_id, tool_name FROM eq_tools WHERE tool_id IN (" +
+                    ",".join(choice_list) + ") AND tool_id NOT IN (" +
+                    ",".join(str(x) for x in self.char_tool_prof_ids) + ")")
+                    # print(sql) #debug
+                    c.execute(sql)
+                    result = c.fetchall()
+                    print("Select tool proficiency: ")
+                    print()
+                    for row in result:
+                        print("{0:>2}. {1}".format(row[0], row[1]))
+                    print()
+                    tool_id_chosen = int(input("Enter the number of the tool proficiency you'd like: "))
+                    while tool_id_chosen not in [x[0] for x in result]:
+                        tool_id_chosen = int(input("Sorry, there was a problem with your choice. Please try again: "))
+                    self.char_tool_prof_ids.append(tool_id_chosen)
+                    
+            # class
+            sql = ""
+            c.execute("SELECT Count(1) FROM class_tool_prof WHERE tool_choice_id IS NOT NULL AND class_id=?",(self.char_class_id,))
+            result = int(c.fetchone()[0])
+            if result > 0:
+                sql = ""
+                c.execute("SELECT tool_choice_list FROM class_tool_prof WHERE tool_choice_id IS NOT NULL AND class_id=?",(self.char_class_id,))
+                result = c.fetchall()
+                for choice in result:
+                    choice_list = choice[0].split(sep=',')
+                    #print(choice_list) #debug
+                    #print(self.char_tool_prof_ids) #debug
+                    #char_tool_prof_ids_str = []
+                    
+                    sql = ("SELECT tool_id, tool_name FROM eq_tools WHERE tool_id IN (" +
+                    ",".join(choice_list) + ") AND tool_id NOT IN (" +
+                    ",".join(str(x) for x in self.char_tool_prof_ids) + ")")
+                    # print(sql) #debug
+                    c.execute(sql)
+                    result = c.fetchall()
+                    print("Select tool proficiency: ")
+                    print()
+                    for row in result:
+                        print("{0:>2}. {1}".format(row[0], row[1]))
+                    print()
+                    tool_id_chosen = int(input("Enter the number of the tool proficiency you'd like: "))
+                    while tool_id_chosen not in [x[0] for x in result]:
+                        tool_id_chosen = int(input("Sorry, there was a problem with your choice. Please try again: "))
+                    self.char_tool_prof_ids.append(tool_id_chosen)
+            
+            
+            # background
+            sql = ""
+            c.execute("SELECT Count(1) FROM bg_tool_prof WHERE tool_choice_id IS NOT NULL AND bg_id=?",(self.char_bg_id,))
+            result = int(c.fetchone()[0])
+            if result > 0:
+                sql = ""
+                c.execute("SELECT tool_choice_list FROM bg_tool_prof WHERE tool_choice_id IS NOT NULL AND bg_id=?",(self.char_bg_id,))
+                result = c.fetchall()
+                for choice in result:
+                    choice_list = choice[0].split(sep=',')
+                    #print(choice_list) #debug
+                    #print(self.char_tool_prof_ids) #debug
+                    #char_tool_prof_ids_str = []
+                    
+                    sql = ("SELECT tool_id, tool_name FROM eq_tools WHERE tool_id IN (" +
+                    ",".join(choice_list) + ") AND tool_id NOT IN (" +
+                    ",".join(str(x) for x in self.char_tool_prof_ids) + ")")
+                    # print(sql) #debug
+                    c.execute(sql)
+                    result = c.fetchall()
+                    print("Select tool proficiency: ")
+                    print()
+                    for row in result:
+                        print("{0:>2}. {1}".format(row[0], row[1]))
+                    print()
+                    tool_id_chosen = int(input("Enter the number of the tool proficiency you'd like: "))
+                    while tool_id_chosen not in [x[0] for x in result]:
+                        tool_id_chosen = int(input("Sorry, there was a problem with your choice. Please try again: "))
+                    self.char_tool_prof_ids.append(tool_id_chosen)
+            
+            
+            """ take all the tool proficiency IDs and get the proficiency names """
+            sql = ("SELECT tool_name FROM eq_tools WHERE tool_id IN (" +
+            ",".join(str(x) for x in self.char_tool_prof_ids) + ")")
+            c.execute(sql)
+            result = c.fetchall()
+            for prof_name in result:
+                self.char_tool_profs.append(prof_name[0])
+            self.char_tool_profs.sort()
+            
+            #print("Tool Prof IDs: {0}".format(self.char_tool_prof_ids)) #debug
+            #print("Tool Proficiencies: {0}".format(self.char_tool_profs)) # debug
+            
+        else:
+            raise ValueError("Must have a valid race, class, and background selected before choosing tool proficiencies. race_id: {0}; bg_id: {1}; class_id: {2}".format(self.char_race_id, self.char_bg_id, self.char_class_id))
+
 
     def get_trinket(self):
         self.trinket_id = roll_dice(1,100)
