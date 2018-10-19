@@ -27,7 +27,7 @@ def print_menu(user_list):
 def roll_dice(qty, num_sides):
     total = 0
     for i in range(qty):
-        total += random.randint(1,num_sides)
+        total += random.randint(1,(num_sides+1))
     return total
 
 def roll_4d6():
